@@ -1,0 +1,245 @@
+```
+{
+"cells": [
+ {
+  "cell_type": "markdown",
+  "metadata": {},
+  "source": [
+   "# Background \n",
+   "\n",
+   "This Jupyter Notebook contains the climate analysis for precipitation and temperature in Honolulu, HI from 08-23-2017 to 08-23-2017 (last twelve months of data). It also looks at specific trip dates from 07-01-2017 to 07-14-2017 to model the climate temperature normals and precipitation based on historical weather data. \n",
+   "\n",
+   "\n",
+   "# Observable Trends \n",
+   "* Honolulu, Hawaii had up to 7 inches of rain in last twelve months. Months with more than 3 inches of rain include: September, October, February, April, and July. \n",
+   "* The most active station indicates the lowest temperature (54.0°F), highest temperature (85.0°F), and average (71.7°F) of the last twelve months. \n",
+   "* The aggregate weather data helps us find the daily normals for the trip dates (07-01-2017 to 07-14-2017). The visualization labeled 'Aggregate Daily Normals for Trip Dates' shows the temperature extremes for the trip (low 60°F and high 88°F) while the average predicted temperatures stay in the mid 70's."
+  ]
+ },
+ {
+  "cell_type": "code",
+  "execution_count": 1,
+  "metadata": {},
+  "outputs": [],
+  "source": [
+   "# Import Dependencies\n",
+   "%matplotlib notebook\n",
+   "from matplotlib import style\n",
+   "style.use('fivethirtyeight')\n",
+   "import matplotlib.pyplot as plt"
+  ]
+ },
+ {
+  "cell_type": "code",
+  "execution_count": 2,
+  "metadata": {},
+  "outputs": [],
+  "source": [
+   "import numpy as np\n",
+   "import pandas as pd"
+  ]
+ },
+ {
+  "cell_type": "code",
+  "execution_count": 3,
+  "metadata": {},
+  "outputs": [],
+  "source": [
+   "import datetime as dt"
+  ]
+ },
+ {
+  "cell_type": "markdown",
+  "metadata": {},
+  "source": [
+   "# Reflect Tables into SQLAlchemy ORM"
+  ]
+ },
+ {
+  "cell_type": "code",
+  "execution_count": 4,
+  "metadata": {},
+  "outputs": [],
+  "source": [
+   "# Python SQL toolkit and Object Relational Mapper\n",
+   "import sqlalchemy\n",
+   "from sqlalchemy.ext.automap import automap_base\n",
+   "from sqlalchemy.orm import Session\n",
+   "from sqlalchemy import create_engine, func"
+  ]
+ },
+ {
+  "cell_type": "code",
+  "execution_count": 5,
+  "metadata": {},
+  "outputs": [],
+  "source": [
+   "# Create a new engine instance\n",
+   "engine = create_engine(\"sqlite:///Resources/hawaii.sqlite\")"
+  ]
+ },
+ {
+  "cell_type": "code",
+  "execution_count": 6,
+  "metadata": {},
+  "outputs": [],
+  "source": [
+   "# Reflect an existing database into a new model\n",
+   "Base = automap_base()\n",
+   "# Reflect the tables\n",
+   "Base.prepare(engine, reflect=True)"
+  ]
+ },
+ {
+  "cell_type": "code",
+  "execution_count": 7,
+  "metadata": {},
+  "outputs": [
+   {
+    "data": {
+     "text/plain": [
+      "['measurement', 'station']"
+     ]
+    },
+    "execution_count": 7,
+    "metadata": {},
+    "output_type": "execute_result"
+   }
+  ],
+  "source": [
+   "# We can view all of the classes that automap found\n",
+   "Base.classes.keys()"
+  ]
+ },
+ {
+  "cell_type": "code",
+  "execution_count": 8,
+  "metadata": {},
+  "outputs": [],
+  "source": [
+   "# Save references to each table\n",
+   "Measurement = Base.classes.measurement\n",
+   "Station = Base.classes.station"
+  ]
+ },
+ {
+  "cell_type": "code",
+  "execution_count": 9,
+  "metadata": {},
+  "outputs": [],
+  "source": [
+   "# Create our session (link) from Python to the DB\n",
+   "session = Session(engine)"
+  ]
+ },
+ {
+  "cell_type": "markdown",
+  "metadata": {},
+  "source": [
+   "# Exploratory Climate Analysis (1 year)"
+  ]
+ },
+ {
+  "cell_type": "code",
+  "execution_count": 10,
+  "metadata": {},
+  "outputs": [
+   {
+    "data": {
+     "application/javascript": [
+      "/* Put everything inside the global mpl namespace */\n",
+      "window.mpl = {};\n",
+      "\n",
+      "\n",
+      "mpl.get_websocket_type = function() {\n",
+      "    if (typeof(WebSocket) !== 'undefined') {\n",
+      "        return WebSocket;\n",
+      "    } else if (typeof(MozWebSocket) !== 'undefined') {\n",
+      "        return MozWebSocket;\n",
+      "    } else {\n",
+      "        alert('Your browser does not have WebSocket support.' +\n",
+      "              'Please try Chrome, Safari or Firefox ≥ 6. ' +\n",
+      "              'Firefox 4 and 5 are also supported but you ' +\n",
+      "              'have to enable WebSockets in about:config.');\n",
+      "    };\n",
+      "}\n",
+      "\n",
+      "mpl.figure = function(figure_id, websocket, ondownload, parent_element) {\n",
+      "    this.id = figure_id;\n",
+      "\n",
+      "    this.ws = websocket;\n",
+      "\n",
+      "    this.supports_binary = (this.ws.binaryType != undefined);\n",
+      "\n",
+      "    if (!this.supports_binary) {\n",
+      "        var warnings = document.getElementById(\"mpl-warnings\");\n",
+      "        if (warnings) {\n",
+      "            warnings.style.display = 'block';\n",
+      "            warnings.textContent = (\n",
+      "                \"This browser does not support binary websocket messages. \" +\n",
+      "                    \"Performance may be slow.\");\n",
+      "        }\n",
+      "    }\n",
+      "\n",
+      "    this.imageObj = new Image();\n",
+      "\n",
+      "    this.context = undefined;\n",
+      "    this.message = undefined;\n",
+      "    this.canvas = undefined;\n",
+      "    this.rubberband_canvas = undefined;\n",
+      "    this.rubberband_context = undefined;\n",
+      "    this.format_dropdown = undefined;\n",
+      "\n",
+      "    this.image_mode = 'full';\n",
+      "\n",
+      "    this.root = $('<div/>');\n",
+      "    this._root_extra_style(this.root)\n",
+      "    this.root.attr('style', 'display: inline-block');\n",
+      "\n",
+      "    $(parent_element).append(this.root);\n",
+      "\n",
+      "    this._init_header(this);\n",
+      "    this._init_canvas(this);\n",
+      "    this._init_toolbar(this);\n",
+      "\n",
+      "    var fig = this;\n",
+      "\n",
+      "    this.waiting = false;\n",
+      "\n",
+      "    this.ws.onopen =  function () {\n",
+      "            fig.send_message(\"supports_binary\", {value: fig.supports_binary});\n",
+      "            fig.send_message(\"send_image_mode\", {});\n",
+      "            if (mpl.ratio != 1) {\n",
+      "                fig.send_message(\"set_dpi_ratio\", {'dpi_ratio': mpl.ratio});\n",
+      "            }\n",
+      "            fig.send_message(\"refresh\", {});\n",
+      "        }\n",
+      "\n",
+      "    this.imageObj.onload = function() {\n",
+      "            if (fig.image_mode == 'full') {\n",
+      "                // Full images could contain transparency (where diff images\n",
+      "                // almost always do), so we need to clear the canvas so that\n",
+      "                // there is no ghosting.\n",
+      "                fig.context.clearRect(0, 0, fig.canvas.width, fig.canvas.height);\n",
+      "            }\n",
+      "            fig.context.drawImage(fig.imageObj, 0, 0);\n",
+      "        };\n",
+      "\n",
+      "    this.imageObj.onunload = function() {\n",
+      "        fig.ws.close();\n",
+      "    }\n",
+      "\n",
+      "    this.ws.onmessage = this._make_on_message_function(this);\n",
+      "\n",
+      "    this.ondownload = ondownload;\n",
+      "}\n",
+      "\n",
+      "mpl.figure.prototype._init_header = function() {\n",
+      "    var titlebar = $(\n",
+      "        '<div class=\"ui-dialog-titlebar ui-widget-header ui-corner-all ' +\n",
+      "        'ui-helper-clearfix\"/>');\n",
+      "    var titletext = $(\n",
+      "        '<div class=\"ui-dialog-title\" style=\"width: 100%; ' +\n",
+      "        'text-align: center; padding: 3px;\"/>');\n",
+      "    titlebar.append(titletext)\n",
+      "    this.root…
